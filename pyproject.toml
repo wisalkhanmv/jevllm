@@ -1,0 +1,32 @@
+[project]
+name = "jevllm"
+version = "0.2.0"
+description = "A language model built out of Jev, a model designed never to be one."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Wisal Khan" }]
+keywords = ["jev", "typesafe", "system-one", "llm", "decoding"]
+dependencies = []
+
+[project.scripts]
+jevllm = "jevllm.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/wisalkhanmv/jevllm"
+Issues = "https://github.com/wisalkhanmv/jevllm/issues"
+
+# Vercel serves the whole app from the request handler in jevllm/server.py —
+# it routes "/" to the UI and "/api/*" to config and decoding, so no framework
+# or extra dependency is needed.
+[tool.vercel]
+entrypoint = "jevllm.server:Handler"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["jevllm"]
+
+[tool.setuptools.package-data]
+jevllm = ["ui.html", "*.png"]

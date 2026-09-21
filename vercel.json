@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "jevllm/server.py": {
+      "maxDuration": 300,
+      "includeFiles": "jevllm/{ui.html,logo.png,favicon.png}"
+    }
+  }
+}

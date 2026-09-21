@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JevLLM</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* JevLLM commits to a single dark instrument palette on purpose: this is a
+   readout, not a document, and it is meant to be looked at in one. Every colour
+   is painted explicitly so the page holds on any host background. */
+:root{
+  --void:#0b0d10;
+  --panel:#13171c;
+  --panel-2:#1a1f26;
+  --rule:#232932;
+  --rule-2:#2f3742;
+  --ink:#eceef2;
+  --ink-2:#9aa4b2;
+  --ink-3:#646e7c;
+  --signal:#f5b545;
+  --signal-deep:#7a5a18;
+  --signal-ghost:#241c0c;
+  --cold:#4d7fb8;
+  --warm-err:#d97757;
+  /* Three faces, three jobs. Source Serif 4 is a text face designed for
+     reading at body sizes — the previous display serif looked good in a
+     screenshot and was tiring to actually read. No italics anywhere. */
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ui:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --prose:"Source Serif 4",Charter,Georgia,serif;
+}
+*{box-sizing:border-box}
+html{background:var(--void)}
+body{
+  margin:0;background:var(--void);color:var(--ink);
+  font-family:var(--ui);font-size:13.5px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.shell{max-width:1240px;margin:0 auto;padding:34px 24px 90px}
+
+/* ── masthead ───────────────────────────────────────────── */
+.masthead{display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--rule)}
+.brand{display:flex;flex-direction:column;gap:3px}
+.lockup{display:flex;align-items:center;gap:14px}
+/* The mark is blue-violet against an amber interface, so it is left as the one
+   cool note on the page rather than recoloured — and kept small enough that it
+   reads as a mark, not a hero. */
+.mark{display:block;width:44px;height:44px;flex:none;
+  filter:drop-shadow(0 2px 10px rgba(77,127,184,.28))}
+@media(max-width:520px){.mark{width:36px;height:36px}}
+.wordmark{font-family:var(--ui);font-size:37px;font-weight:700;line-height:1.05;
+  letter-spacing:-.025em}
+.wordmark b{font-weight:700;color:var(--signal)}
+.tagline{font-size:13px;color:var(--ink-2);line-height:1.5;max-width:54ch;margin-top:5px}
+.origin{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.11em;text-transform:uppercase;
+  text-align:right;line-height:1.9}
+.origin b{color:var(--ink-2);font-weight:500}
+
+/* ── controls ───────────────────────────────────────────── */
+form{margin:22px 0 0}
+.row{display:flex;gap:10px;align-items:stretch}
+#prompt{
+  flex:1;min-width:0;background:var(--panel);border:1px solid var(--rule);
+  color:var(--ink);font-family:var(--prose);font-size:18px;line-height:1.45;
+  padding:13px 15px;border-radius:5px;
+}
+#prompt::placeholder{color:var(--ink-3)}
+#prompt:focus{outline:none;border-color:var(--signal-deep);
+  box-shadow:0 0 0 3px var(--signal-ghost)}
+#go{
+  background:var(--signal);color:#1b1305;border:0;border-radius:5px;
+  font-family:var(--ui);font-weight:700;font-size:13px;letter-spacing:.04em;
+  padding:0 26px;cursor:pointer;white-space:nowrap;
+}
+#go:hover:not(:disabled){filter:brightness(1.08)}
+#go:disabled{opacity:.4;cursor:default}
+.knobs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.knob{display:inline-flex;align-items:center;gap:7px;background:var(--panel);
+  border:1px solid var(--rule);border-radius:5px;padding:8px 11px;
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+.knob select,.knob input{background:transparent;border:0;color:var(--ink);
+  font-family:var(--mono);font-size:11.5px;outline:none;text-transform:none;letter-spacing:0}
+.knob input{width:46px}
+.knob input#stopat{width:62px;text-align:center}
+.knob input[type=checkbox]{width:auto;accent-color:var(--signal);cursor:pointer;margin:0}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--rule);
+  border-radius:5px;overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--ink-3);cursor:pointer;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;padding:8px 13px}
+.seg button + button{border-left:1px solid var(--rule)}
+.seg button.on{background:var(--signal-ghost);color:var(--signal)}
+.seg button:hover:not(.on){color:var(--ink-2)}
+.knob select{cursor:pointer}
+.knob select option{background:var(--panel-2);color:var(--ink)}
+#stop,#more{background:var(--panel-2);border:1px solid var(--rule-2);color:var(--ink);
+  border-radius:5px;padding:0 18px;font-family:var(--ui);font-weight:600;
+  font-size:12.5px;cursor:pointer;white-space:nowrap}
+#more{border-color:var(--signal-deep);color:var(--signal);background:var(--signal-ghost)}
+#more:hover:not(:disabled){border-color:var(--signal);background:#2f2611}
+#stop:hover:not(:disabled){border-color:var(--ink-3)}
+#stop:disabled,#more:disabled{opacity:.3;cursor:default;
+  border-color:var(--rule);color:var(--ink-3);background:transparent}
+.hint{font-size:12px;color:var(--ink-3);margin-left:auto;text-align:right;max-width:40ch;
+  text-transform:none;letter-spacing:0}
+
+/* ── keys ───────────────────────────────────────────────── */
+.keys{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.keyfield{display:inline-flex;align-items:center;gap:8px;background:var(--panel);
+  border:1px solid var(--rule);border-radius:5px;padding:7px 11px;min-width:300px;
+  max-width:480px;flex:1}
+.keyfield label{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);white-space:nowrap}
+.keyfield input{flex:1;min-width:0;background:transparent;border:0;color:var(--ink);
+  font-family:var(--mono);font-size:11.5px;outline:none;letter-spacing:.02em;
+  /* Masked without type="password", so browser password managers don't
+     recognise it as a credential and offer to save it. */
+  -webkit-text-security:disc; text-security:disc}
+.keyfield input:placeholder-shown{-webkit-text-security:none; text-security:none}
+.keyfield input::placeholder{color:var(--ink-3);letter-spacing:0}
+.pill{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;
+  border-radius:99px;white-space:nowrap;border:1px solid transparent}
+.pill.env{color:var(--signal);border-color:var(--signal-deep);background:var(--signal-ghost)}
+.pill.you{color:var(--cold);border-color:#274158;background:#111a24}
+.pill.none{color:var(--ink-3);border-color:var(--rule-2)}
+#clearkey{background:transparent;border:1px solid var(--rule-2);color:var(--ink-3);
+  border-radius:4px;padding:3px 9px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+#clearkey:hover{color:var(--ink);border-color:var(--ink-3)}
+.keynote{flex-basis:100%;font-size:12px;color:var(--ink-3);line-height:1.6}
+.keynote b{color:var(--ink-2);font-weight:500}
+.keynote a{color:var(--signal);text-decoration:none;border-bottom:1px solid var(--signal-deep)}
+
+/* ── panes ──────────────────────────────────────────────── */
+.stage{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;margin-top:20px}
+@media(max-width:880px){.stage{grid-template-columns:1fr}}
+.pane{background:var(--panel);border:1px solid var(--rule);border-radius:6px;
+  display:flex;flex-direction:column;overflow:hidden}
+.pane-head{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:11px 15px;border-bottom:1px solid var(--rule);font-family:var(--mono);
+  font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.pane-head .meta{color:var(--ink-3);letter-spacing:.06em}
+
+#out{flex:1;padding:22px 22px;font-family:var(--prose);font-size:21px;
+  line-height:1.62;min-height:216px;word-break:break-word;max-width:62ch}
+#out .seed{color:var(--ink-3)}
+#out .unit{color:var(--ink)}
+#out .unit.new{color:var(--signal)}
+#out .caret{display:inline-block;width:9px;height:1.05em;vertical-align:-.14em;
+  background:var(--signal);opacity:.75;animation:blink 1.05s steps(2,start) infinite}
+@keyframes blink{to{opacity:0}}
+
+/* ── distribution ───────────────────────────────────────── */
+#bars{flex:1;padding:13px 15px;display:flex;flex-direction:column;gap:6px;
+  min-height:216px;justify-content:flex-start}
+.bar{display:grid;grid-template-columns:96px 1fr 40px;gap:10px;align-items:center}
+.bar .lbl{font-family:var(--mono);font-size:12px;color:var(--ink-2);text-align:right;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .track{display:block;width:100%;height:16px;background:var(--panel-2);
+  border-radius:3px;overflow:hidden}
+.bar .fill{display:block;height:100%;min-width:2px;background:var(--cold);
+  border-radius:3px;transition:width .2s cubic-bezier(.2,.7,.3,1)}
+.bar .pct{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);text-align:right;
+  font-variant-numeric:tabular-nums}
+.bar.chosen .lbl{color:var(--signal)}
+.bar.chosen .fill{background:var(--signal)}
+.bar.chosen .pct{color:var(--signal)}
+.empty{color:var(--ink-3);font-size:11.5px;padding:8px 0;line-height:1.7}
+
+/* ── readouts ───────────────────────────────────────────── */
+.readout{display:flex;gap:0;border-top:1px solid var(--rule);flex-wrap:wrap}
+.cell{flex:1;min-width:84px;padding:10px 14px;border-right:1px solid var(--rule)}
+.cell:last-child{border-right:0}
+.cell .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.cell .v{font-family:var(--mono);font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums;margin-top:2px}
+.spark{border-top:1px solid var(--rule);padding:11px 15px 13px}
+.spark .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);display:flex;justify-content:space-between}
+.spark svg{display:block;width:100%;height:42px;margin-top:6px;overflow:visible}
+
+/* ── footer ─────────────────────────────────────────────── */
+.footer{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:14px}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.card h3{margin:0 0 7px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--signal);font-weight:600}
+.card p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.65}
+.status{margin-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3);min-height:1.4em}
+.status.err{color:var(--warm-err)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="brand">
+      <div class="lockup">
+        <img class="mark" src="/logo.png" alt="" width="44" height="44">
+        <div>
+          <div class="wordmark">Jev<b>LLM</b></div>
+          <div class="tagline">A language model built out of a model designed never to be one.</div>
+        </div>
+      </div>
+    </div>
+    <div class="origin">
+      Jev · <b>System One</b><br>
+      one choice per <b id="unitword">word</b><br>
+      <b id="optcount">—</b> candidates per step
+    </div>
+  </header>
+
+  <form id="f" action="javascript:void(0)" autocomplete="off">
+    <div class="row">
+      <input id="prompt" type="text" autocomplete="off" spellcheck="false"
+             value="It was a bright cold day in April and the"
+             placeholder="Give it something to continue…">
+      <button id="go" type="submit">GENERATE</button>
+      <button id="more" type="button" disabled>Continue</button>
+      <button id="stop" type="button" disabled>Stop</button>
+    </div>
+    <div class="keys">
+      <span class="keyfield">
+        <label for="jevkey">Jev key</label>
+        <input id="jevkey" type="text" autocomplete="off" spellcheck="false"
+               autocapitalize="off" autocorrect="off" data-lpignore="true"
+               data-1p-ignore="true" data-form-type="other"
+               placeholder="paste your key">
+        <button type="button" id="clearkey" hidden>Clear</button>
+        <span class="pill none" id="jevpill">none</span>
+      </span>
+      <span class="keynote" id="keynote">
+        <b>Kept in this browser until you clear it</b> — so a reload does not cost you
+        a paste. It is never stored on the server, never logged, and is sent only to
+        this page's own server in a request header rather than a URL. On a shared
+        machine, press Clear when you are done. Get one at
+        <a href="https://console.typesafe.ai/settings/keys" target="_blank"
+           rel="noopener noreferrer">console.typesafe.ai</a>.
+      </span>
+    </div>
+
+    <div class="knobs">
+      <span class="seg" id="modeseg" role="group" aria-label="Prediction mode">
+        <button type="button" class="on" data-mode="word">Words</button>
+        <button type="button" data-mode="char">Characters</button>
+      </span>
+      <label class="knob" id="strategyknob">candidates
+        <select id="strategy">
+          <option value="tree">tree</option>
+          <option value="dynamic">dynamic</option>
+          <option value="common">common</option>
+          <option value="hybrid">hybrid</option>
+        </select></label>
+      <label class="knob">steps <input id="n" type="number" value="12" min="1" max="60" step="1"></label>
+      <label class="knob">temp <input id="temp" type="number" value="0.2" min="0" max="3" step="0.1"></label>
+      <label class="knob" title="Divides the probability of any word used in the last few steps. Higher means less repetition; 1 turns it off. Exact repeats and repeated word-pairs are blocked outright regardless.">
+        anti-repeat <input id="rp" type="number" value="1.6" min="0" max="100" step="0.1"></label>
+      <label class="knob" title="Multiplier on punctuation. Below 1 discourages full stops.">
+        punct <input id="punct" type="number" value="0.6" min="0" max="2" step="0.05"></label>
+      <label class="knob" title="Stop once the text ends with this. Separate several with | . Leave empty to run every step.">
+        end at <input id="stopat" type="text" value="" placeholder="nothing"
+                      spellcheck="false" autocomplete="off"></label>
+      <span class="hint" id="strategyhint"></span>
+    </div>
+  </form>
+
+  <div class="stage">
+    <section class="pane">
+      <div class="pane-head"><span>Output</span><span class="meta" id="modeline">idle</span></div>
+      <div id="out"><span class="seed"></span><span class="caret"></span></div>
+      <div class="readout">
+        <div class="cell"><div class="k">steps</div><div class="v" id="s_steps">0</div></div>
+        <div class="cell"><div class="k">tokens in</div><div class="v" id="s_tok">0</div></div>
+        <div class="cell"><div class="k">cost</div><div class="v" id="s_cost">$0.0000</div></div>
+        <div class="cell"><div class="k">elapsed</div><div class="v" id="s_sec">0.0s</div></div>
+      </div>
+      <div class="spark">
+        <div class="k"><span>Top probability per step</span><span id="s_mean">—</span></div>
+        <svg id="spark" viewBox="0 0 300 42" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="pane-head"><span>Next-unit distribution</span><span class="meta" id="confline"></span></div>
+      <div id="bars"><div class="empty">Jev returns a calibrated probability for every
+        option it is shown. That makes this a real distribution — temperature, top-k and
+        nucleus sampling all work on it unchanged.</div></div>
+    </section>
+  </div>
+
+  <div class="footer">
+    <div class="card"><h3>Watch the bars, not the text</h3>
+      <p>Confidence is the signal. With word candidates Jev commits; with single characters
+         it spreads thin and the output dissolves — letters carry no meaning to judge.</p></div>
+    <div class="card"><h3>It knows which words, not what order</h3>
+      <p>Given good candidates it reliably picks words that belong in the passage, then
+         puts them in the wrong sequence. Ordering is the thing System One removes.</p></div>
+    <div class="card"><h3>Dynamic is Jev used correctly</h3>
+      <p>Another model proposes candidates, Jev selects. That is the architecture it was
+         built for — and the only setting here that produces real content.</p></div>
+  </div>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const HINTS = {
+  tree:    "picks a word class first, then the word inside it \u2014 one round trip, vocabulary past the 255 ceiling",
+  common:  "fixed word list — fluent, but it can never name anything specific",
+  hybrid:  "function words plus words mined from the text — it can only recycle",
+  dynamic: "a frontier model proposes, Jev picks — slower, and the only one that works",
+  char:    "one character at a time — watch the confidence collapse",
+};
+let controller = null, tops = [], serverKeys = { hasJev: false, hasProposer: false };
+
+// The key is kept in this browser so a reload does not cost you a paste, and
+// stays until Clear removes it. It is never sent anywhere but this page's own
+// server. Storage can throw outright in private windows and where site data is
+// blocked, so every access is guarded and the page works without it.
+const KEY_STORE = 'jevllm.jevKey';
+function loadKey(){ try { return localStorage.getItem(KEY_STORE) || ''; } catch { return ''; } }
+function saveKey(v){ try { v ? localStorage.setItem(KEY_STORE, v)
+                             : localStorage.removeItem(KEY_STORE); } catch {} }
+try { localStorage.removeItem('jevllm.proposerKey'); } catch {}
+
+const esc = s => s.replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const show = s => s === '\n' ? '⏎' : s === ' ' ? '␣' : s;
+
+function setBusy(b){
+  $('go').disabled = b; $('stop').disabled = !b;
+  $('more').disabled = b || !produced;
+  $('modeline').textContent = b ? 'decoding' : 'done';
+}
+
+function paintPill(pill, typed, fromEnv){
+  if (typed){ pill.className = 'pill you'; pill.textContent = 'yours'; }
+  else if (fromEnv){ pill.className = 'pill env'; pill.textContent = 'from .env'; }
+  else { pill.className = 'pill none'; pill.textContent = 'none'; }
+}
+
+function applyStepCeiling(){
+  // Using your own key raises the ceiling — the lower one exists to protect
+  // whoever deployed this, not to restrain you.
+  const own = !!$('jevkey').value.trim();
+  const max = own ? (serverKeys.maxStepsOwnKey || 400) : (serverKeys.maxSteps || 60);
+  $('n').max = max;
+  if (Number($('n').value) > max) $('n').value = max;
+  $('n').title = `up to ${max} per run` + (own ? ' with your own key' : '');
+}
+
+function syncKeys(){
+  const typed = $('jevkey').value.trim();
+  applyStepCeiling();
+  paintPill($('jevpill'), typed, serverKeys.hasJev);
+  $('clearkey').hidden = !typed;
+}
+
+$('jevkey').addEventListener('input', () => { saveKey($('jevkey').value.trim()); syncKeys(); });
+
+$('clearkey').addEventListener('click', () => {
+  $('jevkey').value = '';
+  saveKey('');
+  syncKeys();
+  $('jevkey').focus();
+});
+
+// The dynamic strategy needs a proposer model, which only the server can
+// supply. Where it has no key — any public deployment — the option is off.
+function syncStrategies(){
+  const dyn = $('strategy').querySelector('option[value="dynamic"]');
+  if (!dyn || serverKeys.hasProposer) return;
+  dyn.disabled = true;
+  dyn.textContent = 'dynamic (local only)';
+  if ($('strategy').value === 'dynamic') $('strategy').value = 'common';
+  syncHint();
+}
+
+$('jevkey').value = loadKey();
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  serverKeys = cfg;
+  if (cfg.hasJev) $('jevkey').placeholder = 'server key in use';
+  applyStepCeiling();
+  syncKeys(); syncStrategies();
+}).catch(() => { syncKeys(); syncStrategies(); });
+
+let mode = 'word';
+
+function syncHint(){
+  // In character mode the candidate set is the alphabet, so the strategy
+  // selector has nothing to choose between and the word-level shaping
+  // controls do not apply.
+  const isChar = mode === 'char';
+  $('strategyknob').style.display = isChar ? 'none' : '';
+  $('rp').closest('.knob').style.display = isChar ? 'none' : '';
+  $('punct').closest('.knob').style.display = isChar ? 'none' : '';
+  $('unitword').textContent = isChar ? 'character' : 'word';
+  $('strategyhint').textContent = isChar
+    ? 'one character at a time from 75 candidates — watch the confidence collapse'
+    : HINTS[$('strategy').value];
+}
+$('strategy').addEventListener('change', syncHint);
+
+$('modeseg').addEventListener('click', ev => {
+  const btn = ev.target.closest('button[data-mode]');
+  if (!btn) return;
+  mode = btn.dataset.mode;
+  [...$('modeseg').children].forEach(b => b.classList.toggle('on', b === btn));
+  syncHint(); syncStrategies();
+});
+syncHint();
+
+function renderBars(probs, chosen){
+  const rows = Object.entries(probs).sort((a,b) => b[1]-a[1]).slice(0, 9);
+  const max = rows.length ? rows[0][1] : 1;
+  $('bars').innerHTML = rows.map(([unit, p]) =>
+    `<div class="bar${unit === chosen ? ' chosen' : ''}">
+       <span class="lbl">${esc(show(unit))}</span>
+       <span class="track"><span class="fill" style="width:${(p/max*100).toFixed(1)}%"></span></span>
+       <span class="pct">${p.toFixed(2)}</span>
+     </div>`).join('');
+}
+
+function renderSpark(){
+  if (!tops.length) { $('spark').innerHTML = ''; return; }
+  const w = 300, h = 42, n = Math.max(tops.length - 1, 1);
+  const pts = tops.map((p, i) => [(i / n) * w, h - p * h]);
+  const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area = `${line} ${w},${h} 0,${h}`;
+  const last = pts[pts.length - 1];
+  $('spark').innerHTML =
+    `<polygon points="${area}" fill="#f5b545" opacity="0.10"></polygon>
+     <polyline points="${line}" fill="none" stroke="#f5b545" stroke-width="1.5"
+       stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+     <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.5" fill="#f5b545"></circle>
+     <line x1="0" y1="${(h*0.5).toFixed(1)}" x2="${w}" y2="${(h*0.5).toFixed(1)}"
+       stroke="#2f3742" stroke-width="1" stroke-dasharray="3 4"
+       vector-effect="non-scaling-stroke"></line>`;
+  const mean = tops.reduce((a, b) => a + b, 0) / tops.length;
+  $('s_mean').textContent = `mean ${mean.toFixed(2)} · peak ${Math.max(...tops).toFixed(2)}`;
+}
+
+let produced = '';   // everything generated since the last Generate
+// Continue issues a fresh request, so the server's counters restart. These
+// carry the totals across so cost reflects the whole session, not the last leg.
+let carried = { steps: 0, tokens: 0, cost: 0, elapsed: 0 };
+
+async function run(continuing){
+  if (controller) controller.abort();
+  const seed = $('prompt').value;
+  // Continuing feeds the text so far back in as the prompt, so the model sees
+  // its own output as context rather than starting cold.
+  const prompt = continuing ? (seed.replace(/\s+$/, '') + produced) : seed;
+  if (!continuing){
+    tops = []; produced = '';
+    carried = { steps: 0, tokens: 0, cost: 0, elapsed: 0 };
+  }
+
+  if (!continuing){
+    $('out').innerHTML = `<span class="seed">${esc(prompt)}</span><span class="caret"></span>`;
+  }
+  $('bars').innerHTML = '';
+  $('status').textContent = ''; $('status').classList.remove('err');
+  if (!continuing){
+    paintTotals(0, 0, 0, 0);
+    $('s_mean').textContent = '\u2014'; renderSpark();
+  }
+  setBusy(true);
+
+  // EventSource cannot set headers, and a key has no business in a query
+  // string, so this reads the SSE stream off a POST instead.
+  const headers = { 'Content-Type': 'application/json' };
+  const jev = $('jevkey').value.trim();
+  if (jev) headers['X-Jev-Key'] = jev;
+
+  controller = new AbortController();
+  last = null;
+  try {
+    const resp = await fetch('/api/decode', {
+      method: 'POST', headers, signal: controller.signal,
+      body: JSON.stringify({
+        prompt, mode, strategy: $('strategy').value, n: Number($('n').value),
+        temp: Number($('temp').value), rp: Number($('rp').value),
+        punct: Number($('punct').value),
+        stopAt: $('stopat').value }),
+    });
+    if (!resp.ok || !resp.body) throw new Error(`server returned ${resp.status}`);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let split;
+      while ((split = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, split); buffer = buffer.slice(split + 2);
+        if (!frame.startsWith('data:')) continue;
+        if (handleEvent(JSON.parse(frame.slice(5).trim()))) { controller.abort(); return; }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      $('status').textContent = err.message; $('status').classList.add('err');
+    }
+  } finally {
+    if (last){
+      carried = { steps: carried.steps + last.steps,
+                  tokens: carried.tokens + last.tokens,
+                  cost: carried.cost + last.cost,
+                  elapsed: carried.elapsed + last.elapsed };
+      last = null;
+    }
+    setBusy(false);
+    document.querySelectorAll('#out .new').forEach(n => n.classList.remove('new'));
+  }
+}
+
+function showSeed(){
+  if ($('go').disabled || produced) return;      // never clobber a live run
+  $('out').innerHTML =
+    `<span class="seed">${esc($('prompt').value)}</span><span class="caret"></span>`;
+}
+
+$('f').addEventListener('submit', ev => { ev.preventDefault(); run(false); });
+$('more').addEventListener('click', () => run(true));
+
+function paintTotals(steps, tokens, cost, elapsed){
+  $('s_steps').textContent = steps;
+  $('s_tok').textContent = tokens.toLocaleString();
+  $('s_cost').textContent = '$' + cost.toFixed(4);
+  $('s_sec').textContent = elapsed.toFixed(1) + 's';
+}
+
+let last = null;   // most recent step event of the current leg
+
+/** Returns true when the stream is finished. */
+function handleEvent(d){
+  if (d.error){
+    $('status').textContent = d.error; $('status').classList.add('err');
+    return true;
+  }
+  if (d.done){
+    $('status').textContent = d.note || '';
+    return true;
+  }
+  tops.push(d.top); renderSpark();
+  renderBars(d.probs, d.unit);
+  document.querySelectorAll('#out .new').forEach(n => n.classList.remove('new'));
+  const sep = (d.punct || d.mode === 'char') ? '' : ' ';
+  produced += sep + d.unit;
+  $('out').querySelector('.caret').insertAdjacentHTML('beforebegin',
+    `<span class="unit new">${esc(sep + d.unit)}</span>`);
+  last = d;
+  paintTotals(carried.steps + d.steps, carried.tokens + d.tokens,
+              carried.cost + d.cost, carried.elapsed + d.elapsed);
+  $('optcount').textContent = d.options;
+  $('confline').textContent = d.confidence == null ? '' : 'confidence ' + d.confidence.toFixed(2);
+  return false;
+}
+
+$('prompt').addEventListener('input', showSeed);
+showSeed();
+
+$('stop').addEventListener('click', () => {
+  if (controller) controller.abort();
+  setBusy(false);
+  $('status').textContent = 'stopped \u2014 press Continue to carry on';
+});
+</script>
+</body>
+</html>
