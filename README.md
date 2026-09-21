@@ -18,7 +18,7 @@ It was a bright cold day in April and the clocks struck thirteen Winston
 
 Orwell's opening has "the clocks were striking thirteen," and Winston is the man
 who walks in next. JevLLM got there by asking a decision model the same
-question seventy times in a row.
+question a dozen times in a row.
 
 ---
 
@@ -69,8 +69,9 @@ counters accumulate across legs rather than resetting.
 The `anti-repeat` control divides the probability of any word used in the last
 few steps — higher means less repetition, 1 turns it off. Exact repeats and
 repeated word-pairs are blocked outright regardless, so this only shapes the
-softer cases. Watch the bars, not the
-text — confidence is where the story is.
+softer cases.
+
+Watch the bars, not the text — confidence is where the story is.
 
 ### Keys
 
@@ -94,7 +95,10 @@ used by `dynamic` to propose candidates — is read from the environment and
 nowhere else, so a public deployment cannot ask a visitor for a second
 credential and `dynamic` is simply not offered there. Run it locally for that.
 
-Steps are capped server-side at 60 per request.
+Steps are capped server-side at 60 per request when the run is spending the
+server's key, and 400 when you have pasted your own — the lower cap exists to
+protect whoever deployed it, not to restrain you. Both are overridable with
+`JEVLLM_MAX_STEPS` and `JEVLLM_MAX_STEPS_OWN`.
 
 What this does *not* protect against: whoever operates a deployment receives
 whatever key you paste into it, in plaintext. That is inherent to any
@@ -194,13 +198,13 @@ applied to categories as well as words. Real prose alternates word classes.
 
 ## Findings
 
-Measured across all four strategies on the same prompts.
+Measured across the strategies and modes on the same prompts.
 
 | strategy | mean top p | peak | sample output |
 |---|---|---|---|
 | `char` | ~0.20 | 0.25 | drifts into whitespace and never recovers |
 | `hybrid` | 0.12–0.36 | 0.42 | `was were It.` |
-| `common` | 0.23–0.51 | 0.71 | `the the a it was very good.` |
+| `common` | 0.23–0.51 | 0.71 | `fine thanks. and you fine am fine. too.` |
 | `dynamic` | 0.34–0.54 | **0.82** | `clocks struck thirteen Winston` |
 
 **1. Characters don't work, and the reason is the whole insight.** Jev is
@@ -258,7 +262,7 @@ vocabulary — which is the architecture the
 generate candidates elsewhere, judge with Jev. We arrived at it by failing to
 avoid it.
 
-**4. Byte-level decoding is impossible by exactly one option.** The API caps a
+**7. Byte-level decoding is impossible by exactly one option.** The API caps a
 Choice at 255 options. Bytes need 256.
 
 ## Speed
@@ -270,7 +274,7 @@ removing round trips rather than tokens.
 |---|---|---|
 | reuse one TLS connection | 1.01 s/call | **0.41 s/call** |
 | cache the candidate set | 5 proposals / 10 words | **1 proposal / 16 words** |
-| speculative fan-out | 1.00 words/request | **1.1–1.3 words/request** |
+| speculative fan-out | 1.00 words/request | 1.1–1.3 words/request — *off by default, see below* |
 | **`common` overall** | ~1.0 words/sec | **2.5 words/sec** |
 | **`dynamic` overall** | 0.12 words/sec | **0.55 words/sec** |
 
@@ -287,14 +291,17 @@ is the shipped value) was 0.22, which fired on almost every step, because Jev's
 top probability on open continuations genuinely sits around 0.25. Tuning that
 number *is* the optimisation.
 
-**Speculative fan-out helps, modestly.** Jev reads the state once and answers
+**Speculative fan-out helps on round trips and hurts on output, so it ships
+off.** Jev reads the state once and answers
 every question in a request in parallel, so alongside "what comes next?" we ask
 "and if it turns out to be X, what then?" for the proposer's top few guesses.
 When the sampled word is one we guessed, the next distribution is already in
 hand and we advance two words for one round trip. Acceptance runs 11–22%, worth
-about 10–30% fewer requests. Speculative branches get a trimmed 80-option list,
-since every question carries its own criteria and full-width speculation
-triples input tokens for no extra accuracy.
+about 10–30% fewer requests. But a word cashed in from a speculative branch is
+drawn from a trimmed 80-option list rather than the full candidate set — every
+question carries its own criteria, and full-width speculation triples input
+tokens — and the quality cost is severe: `I'm fine. Thanks.` becomes `Good. and
+And But Well is am.` on the same prompt and seed. `--speculate N` turns it on.
 
 It is the same structure as ordinary speculative decoding — a cheap model
 drafts, an expensive one verifies — except the "expensive" model here costs
@@ -354,6 +361,7 @@ the most legible one we could find.
 jevllm/
   api.py      Jev client, sampling (temperature / top-k / nucleus)
   vocab.py    candidate strategies and the word lists
+  tree.py     the categorised vocabulary and its two-level walk
   decode.py   the decoding loop — yields one Step per unit
   server.py   local SSE server
   ui.html     the interface
