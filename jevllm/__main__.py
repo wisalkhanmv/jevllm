@@ -20,7 +20,7 @@ def main() -> None:
     ap.add_argument("-n", "--steps", type=int, default=14)
     ap.add_argument("-m", "--mode", default="word", choices=["word", "char"],
                     help="Predict a word at a time, or a character at a time.")
-    ap.add_argument("-s", "--strategy", default="tree",
+    ap.add_argument("-s", "--strategy", default="common",
                     choices=[*STRATEGIES, "char"],
                     help="; ".join(f"{k}: {v}" for k, v in STRATEGY_HELP.items()))
     ap.add_argument("-t", "--temperature", type=float, default=0.2)

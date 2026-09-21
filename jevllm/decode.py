@@ -50,7 +50,7 @@ class Step:
 class Settings:
     prompt: str
     mode: str = "word"
-    strategy: str = "tree"
+    strategy: str = "common"
     limit: int = 14
     temperature: float = 0.2
     top_k: int = 0

@@ -279,7 +279,7 @@ def propose(text: str, n: int, key: str, model: str, timeout: float) -> list[str
         return []
 
 
-STRATEGIES = ("tree", "common", "hybrid", "dynamic")
+STRATEGIES = ("common", "tree", "hybrid", "dynamic")
 
 STRATEGY_HELP = {
     "tree": "picks a word class first, then the word inside it — one round trip, and a vocabulary far past the 255-option ceiling",

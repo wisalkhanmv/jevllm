@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
         # Mode and candidate strategy are independent: mode is what it
         # predicts, strategy is where the candidates come from.
         mode = "char" if str(body.get("mode") or "word") == "char" else "word"
-        strategy = str(body.get("strategy") or "tree")
+        strategy = str(body.get("strategy") or "common")
         if strategy == "char":          # older clients sent it as a strategy
             mode, strategy = "char", "common"
         if strategy == "dynamic" and not proposer_key:

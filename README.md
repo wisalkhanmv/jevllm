@@ -137,8 +137,8 @@ The option set *is* the vocabulary, so how you build it decides everything.
 
 | `-s` | what it does | result |
 |---|---|---|
-| `tree` | a categorised vocabulary walked two levels deep | reaches past the 255 ceiling in one round trip |
-| `common` | a word-class-stratified corpus, sliced to fit | deterministic and coherent; can't name anything specific |
+| `common` | a word-class-stratified corpus, sliced to fit | **the default** — deterministic, coherent, cheapest |
+| `tree` | a categorised vocabulary walked two levels deep | reaches past the 255 ceiling; 3.4x the tokens for the same output |
 | `hybrid` | function words + words mined from the text so far | can only recycle what it has already seen |
 | `dynamic` | a frontier model proposes candidates, Jev picks | the only one that produces real content |
 
